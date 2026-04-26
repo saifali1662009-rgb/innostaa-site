@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>INNOSTAA — Voice Intelligence System</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --black: #03050d;
+  --deep: #060c1a;
+  --navy: #0a1628;
+  --blue: #0d2150;
+  --accent: #1a6fff;
+  --accent2: #00c8ff;
+  --glow: rgba(26,111,255,0.18);
+  --glass: rgba(10,22,40,0.72);
+  --text: #e8eef8;
+  --muted: #7a93be;
+  --border: rgba(26,111,255,0.18);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* Custom cursor */
+#cursor {
+  position: fixed; width: 12px; height: 12px;
+  background: var(--accent2); border-radius: 50%;
+  pointer-events: none; z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: transform 0.1s, width 0.2s, height 0.2s, background 0.2s;
+  mix-blend-mode: screen;
+}
+#cursor-ring {
+  position: fixed; width: 36px; height: 36px;
+  border: 1px solid rgba(0,200,255,0.4); border-radius: 50%;
+  pointer-events: none; z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: transform 0.18s ease, width 0.3s, height 0.3s;
+}
+
+/* Noise overlay */
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.35; pointer-events:none; z-index:1;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.2rem 4rem;
+  background: rgba(3,5,13,0.7);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: 1.6rem; letter-spacing: 0.12em;
+  background: linear-gradient(135deg, #fff 30%, var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nav-links { display: flex; gap: 2.4rem; }
+.nav-links a {
+  color: var(--muted); text-decoration: none; font-size: 0.85rem;
+  letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--accent2); }
+.nav-cta {
+  background: var(--accent); color: #fff; padding: 0.55rem 1.4rem;
+  border-radius: 4px; text-decoration: none; font-size: 0.85rem;
+  font-weight: 700; letter-spacing: 0.08em; transition: background 0.2s, box-shadow 0.2s;
+}
+.nav-cta:hover { background: var(--accent2); box-shadow: 0 0 20px var(--glow); }
+
+/* HERO */
+#hero {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  padding: 8rem 2rem 4rem;
+  position: relative; overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 30%, rgba(13,33,80,0.9) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 20% 80%, rgba(26,111,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 80% 70%, rgba(0,200,255,0.05) 0%, transparent 60%);
+}
+
+/* Grid lines */
+.hero-grid {
+  position: absolute; inset: 0; opacity: 0.04;
+  background-image:
+    linear-gradient(rgba(26,111,255,1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,111,255,1) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Orb */
+.orb {
+  width: 280px; height: 280px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #1a6fff, #0a1628 60%, transparent);
+  box-shadow: 0 0 80px rgba(26,111,255,0.4), 0 0 160px rgba(26,111,255,0.15), inset 0 0 60px rgba(0,200,255,0.1);
+  margin-bottom: 2.5rem;
+  animation: orbPulse 4s ease-in-out infinite;
+  position: relative; z-index: 2;
+}
+.orb::after {
+  content:''; position:absolute; inset:-2px;
+  border-radius:50%;
+  border: 1px solid rgba(0,200,255,0.25);
+  animation: orbRing 4s ease-in-out infinite;
+}
+.orb-inner {
+  position: absolute; inset: 30px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, rgba(0,200,255,0.35), transparent 60%);
+  animation: orbInner 3s ease-in-out infinite alternate;
+}
+@keyframes orbPulse {
+  0%,100% { box-shadow: 0 0 80px rgba(26,111,255,0.4), 0 0 160px rgba(26,111,255,0.15); }
+  50% { box-shadow: 0 0 120px rgba(26,111,255,0.6), 0 0 240px rgba(26,111,255,0.2); }
+}
+@keyframes orbRing {
+  0%,100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.06); opacity: 0.15; }
+}
+@keyframes orbInner {
+  from { transform: translate(-4px,-4px) scale(1); }
+  to { transform: translate(4px,4px) scale(1.05); }
+}
+
+.tagline-italic {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+  color: var(--muted); max-width: 620px; line-height: 1.7;
+  margin-bottom: 1.8rem; position: relative; z-index: 2;
+  letter-spacing: 0.01em;
+}
+
+h1 {
+  font-size: clamp(3.5rem, 9vw, 8rem); font-weight: 800;
+  letter-spacing: -0.02em; line-height: 0.95;
+  background: linear-gradient(160deg, #ffffff 0%, #a8c4ff 50%, var(--accent2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 1.2rem; position: relative; z-index: 2;
+}
+.hero-sub {
+  font-size: 1.05rem; color: var(--muted); max-width: 500px;
+  line-height: 1.7; margin-bottom: 2.6rem; position: relative; z-index: 2;
+}
+.hero-btns { display: flex; gap: 1rem; position: relative; z-index: 2; }
+.btn-primary {
+  background: var(--accent); color: #fff; padding: 0.85rem 2.2rem;
+  border-radius: 6px; text-decoration: none; font-weight: 700;
+  font-size: 0.95rem; letter-spacing: 0.06em;
+  box-shadow: 0 0 30px rgba(26,111,255,0.4);
+  transition: all 0.25s;
+}
+.btn-primary:hover { background: var(--accent2); color: #000; transform: translateY(-2px); box-shadow: 0 0 50px rgba(0,200,255,0.5); }
+.btn-ghost {
+  border: 1px solid var(--border); color: var(--text); padding: 0.85rem 2.2rem;
+  border-radius: 6px; text-decoration: none; font-weight: 600;
+  font-size: 0.95rem; letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.03); transition: all 0.25s;
+}
+.btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* Windows badge */
+.windows-badge {
+  position: relative; z-index: 2; margin-top: 1.5rem;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+  border: 1px solid rgba(255,255,255,0.08); padding: 0.35rem 0.9rem;
+  border-radius: 20px; background: rgba(255,255,255,0.02);
+}
+.windows-badge svg { width: 14px; height: 14px; }
+
+/* SECTIONS */
+section { position: relative; z-index: 2; }
+
+/* CAPABILITIES */
+#capabilities {
+  padding: 7rem 2rem;
+  background: linear-gradient(180deg, var(--black) 0%, var(--deep) 50%, var(--black) 100%);
+}
+.section-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+  letter-spacing: 0.25em; color: var(--accent2); text-transform: uppercase;
+  margin-bottom: 0.8rem; display: block;
+}
+.section-title {
+  font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800;
+  line-height: 1.1; margin-bottom: 1rem;
+}
+.section-title span { color: var(--accent2); }
+
+.caps-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; max-width: 1200px; margin: 4rem auto 0;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+.cap-filler {
+  background: var(--deep);
+}
+.cap-card:nth-child(7) {
+  background: var(--deep);
+}
+.cap-card {
+  background: var(--deep); padding: 2.4rem 2rem;
+  transition: background 0.3s;
+  position: relative; overflow: hidden;
+}
+.cap-card:hover { background: var(--navy); }
+.cap-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  transform: scaleX(0); transition: transform 0.4s;
+}
+.cap-card:hover::before { transform: scaleX(1); }
+.cap-icon {
+  font-size: 2rem; margin-bottom: 1.2rem; display: block;
+}
+.cap-title {
+  font-size: 1.1rem; font-weight: 700; margin-bottom: 0.6rem;
+  letter-spacing: 0.02em;
+}
+.cap-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+
+/* GESTURES */
+#gestures {
+  padding: 7rem 2rem;
+  max-width: 1200px; margin: 0 auto;
+}
+.gestures-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 2rem; margin-top: 4rem;
+}
+.gesture-card {
+  border: 1px solid var(--border); padding: 2.5rem 2rem;
+  border-radius: 12px; text-align: center;
+  background: linear-gradient(135deg, var(--deep), var(--navy));
+  position: relative; overflow: hidden; transition: transform 0.3s, box-shadow 0.3s;
+}
+.gesture-card:hover { transform: translateY(-6px); box-shadow: 0 20px 60px rgba(26,111,255,0.2); }
+.gesture-num {
+  font-family: 'Playfair Display', serif; font-size: 5rem; font-weight: 700;
+  color: rgba(26,111,255,0.15); position: absolute; top: 1rem; right: 1.5rem;
+  line-height: 1;
+}
+.gesture-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.gesture-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+.gesture-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+/* MODULES STRIP */
+#modules {
+  background: var(--deep); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 7rem 2rem; overflow: hidden;
+}
+.modules-inner { max-width: 1200px; margin: 0 auto; }
+.module-list {
+  display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 3rem;
+}
+.module-tag {
+  display: flex; align-items: center; gap: 0.6rem;
+  border: 1px solid var(--border); padding: 0.7rem 1.4rem;
+  border-radius: 40px; font-size: 0.85rem; font-weight: 600;
+  background: var(--glass); backdrop-filter: blur(10px);
+  transition: all 0.2s;
+}
+.module-tag:hover { border-color: var(--accent2); color: var(--accent2); box-shadow: 0 0 20px rgba(0,200,255,0.1); }
+.module-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); }
+
+/* DOWNLOAD SECTION */
+#download {
+  padding: 7rem 2rem;
+  background: var(--black);
+  max-width: 1100px; margin: 0 auto;
+}
+.download-wrap {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--deep) 0%, var(--navy) 100%);
+  padding: 4rem 3rem;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;
+  position: relative; overflow: hidden;
+}
+.download-wrap::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width: 300px; height: 300px; border-radius:50%;
+  background: radial-gradient(circle, rgba(26,111,255,0.1), transparent 70%);
+  pointer-events:none;
+}
+.download-info h2 { font-size: 2.5rem; font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
+.download-info p { color: var(--muted); line-height: 1.7; font-size: 0.95rem; margin-bottom: 1.5rem; }
+.req-list { list-style: none; display: flex; flex-direction: column; gap: 0.4rem; }
+.req-list li {
+  font-size: 0.82rem; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.req-list li::before { content: '›'; color: var(--accent2); font-size: 1rem; }
+
+/* Login Form */
+.login-box {
+  background: rgba(3,5,13,0.7); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2.2rem;
+}
+.login-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+.login-box p { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.8rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 0.4rem; }
+.form-group input {
+  width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 6px; padding: 0.75rem 1rem; color: var(--text);
+  font-family: 'Syne', sans-serif; font-size: 0.9rem;
+  transition: border-color 0.2s;
+  outline: none;
+}
+.form-group input:focus { border-color: var(--accent); }
+.form-group input::placeholder { color: rgba(122,147,190,0.5); }
+.btn-download {
+  width: 100%; background: linear-gradient(135deg, var(--accent), #0050cc);
+  color: #fff; border: none; padding: 0.9rem; border-radius: 6px;
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem;
+  letter-spacing: 0.06em; cursor: pointer; margin-top: 0.8rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  transition: all 0.25s; box-shadow: 0 0 30px rgba(26,111,255,0.3);
+}
+.btn-download:hover { background: linear-gradient(135deg, var(--accent2), var(--accent)); box-shadow: 0 0 50px rgba(0,200,255,0.4); transform: translateY(-1px); }
+.success-msg {
+  display: none; text-align: center; padding: 1rem;
+  color: var(--accent2); font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* FOOTER */
+footer {
+  background: var(--deep); border-top: 1px solid var(--border);
+  padding: 4rem 4rem 2rem;
+}
+.footer-top {
+  display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4rem; margin-bottom: 3rem;
+}
+.footer-brand .logo { font-size: 1.4rem; display: block; margin-bottom: 0.8rem; }
+.footer-brand p { color: var(--muted); font-size: 0.85rem; line-height: 1.7; max-width: 300px; }
+.footer-col h4 { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.2rem; }
+.footer-col a { display: block; color: var(--text); text-decoration: none; font-size: 0.88rem; margin-bottom: 0.7rem; opacity: 0.7; transition: opacity 0.2s, color 0.2s; }
+.footer-col a:hover { opacity: 1; color: var(--accent2); }
+
+.contact-block {
+  background: rgba(26,111,255,0.05); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.5rem 2rem; margin: 2rem 0;
+  display: flex; flex-wrap: wrap; gap: 2rem; align-items: center;
+}
+.contact-item { display: flex; align-items: center; gap: 0.7rem; }
+.contact-item .c-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.1rem; }
+.contact-item .c-email { color: var(--accent2); font-size: 0.9rem; font-family: 'JetBrains Mono', monospace; }
+.contact-item svg { color: var(--accent); }
+
+.footer-bottom {
+  border-top: 1px solid var(--border); padding-top: 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.footer-bottom p { font-size: 0.78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.os-badge {
+  font-size: 0.72rem; font-family: 'JetBrains Mono', monospace;
+  color: var(--muted); border: 1px solid var(--border); padding: 0.3rem 0.8rem; border-radius: 20px;
+}
+
+/* Animations */
+.fade-up {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.7s, transform 0.7s;
+}
+.fade-up.visible { opacity: 1; transform: none; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--black); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
+
+@media (max-width: 768px) {
+  nav { padding: 1rem 1.5rem; }
+  .nav-links { display: none; }
+  .gestures-grid { grid-template-columns: 1fr; }
+  .download-wrap { grid-template-columns: 1fr; }
+  .footer-top { grid-template-columns: 1fr; gap: 2rem; }
+  footer { padding: 3rem 1.5rem 2rem; }
+  .contact-block { flex-direction: column; gap: 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- NAV -->
+<nav>
+  <span class="logo">INNOSTAA</span>
+  <div class="nav-links">
+    <a href="#capabilities">Capabilities</a>
+    <a href="#gestures">Gestures</a>
+    <a href="#modules">Modules</a>
+    <a href="#download">Download</a>
+  </div>
+  <button onclick="openLoginModal()" class="nav-cta">Get INNOSTAA</button>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="orb"><div class="orb-inner"></div></div>
+  <p class="tagline-italic fade-up">"Seven distinct intelligence modules. One voice. Your machine, finally obedient."</p>
+  <h1 class="fade-up">INNOSTAA</h1>
+  <p class="hero-sub fade-up">A next-generation AI voice assistant built for total system control — from smart lights to vision, research to gestures.</p>
+  <div class="hero-btns fade-up">
+    <button class="btn-primary" onclick="openLoginModal()">↓ Download .exe</button>
+    <button class="btn-ghost" onclick="document.getElementById('capabilities').scrollIntoView({behavior:'smooth'})">Explore Features</button>
+  </div>
+  <div class="windows-badge fade-up">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.557L10.333 4.5V11.5H3V5.557ZM11.333 4.357L21 3V11.5H11.333V4.357ZM3 12.5H10.333V19.5L3 18.443V12.5ZM11.333 12.5H21V21L11.333 19.643V12.5Z"/></svg>
+    Windows Only &nbsp;·&nbsp; v1.0 Beta
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section id="capabilities">
+  <div style="max-width:1200px;margin:0 auto;padding:0 1rem;">
+    <span class="section-label">What it does</span>
+    <h2 class="section-title fade-up">Seven Modules.<br><span>Infinite Control.</span></h2>
+  </div>
+  <div class="caps-grid fade-up">
+    <div class="cap-card">
+      <span class="cap-icon">🧠</span>
+      <div class="cap-title">Session Memory System</div>
+      <p class="cap-desc">Reflective session memory that learns from every interaction. INNOSTAA remembers what you said, what you did, and what you meant — across the entire session.</p>
+    </div>
+    <div class="cap-card">
+      <span class="cap-icon">📋</span>
+      <div class="cap-title">Autonomous Research Mode</div>
+      <p class="cap-desc">Trigger deep research by voice. INNOSTAA scouts, compiles, and auto-saves structured reports directly to your PC — no copy-paste, no waiting.</p>
+    </div>
+    <div class="cap-card">
+      <span class="cap-icon">💡</span>
+      <div class="cap-title">ESP32 Room Control</div>
+      <p class="cap-desc">Pair INNOSTAA with an ESP32 microcontroller to control your room lights via voice command. Smart home intelligence, no subscription required.</p>
+    </div>
+    <div class="cap-card">
+      <span class="cap-icon">📂</span>
+      <div class="cap-title">Intelligent File & App Opener</div>
+      <p class="cap-desc">Say what you need — INNOSTAA intelligently locates and opens files, folders, or applications using context-aware semantic search across your system.</p>
+    </div>
+    <div class="cap-card">
+      <span class="cap-icon">👁️</span>
+      <div class="cap-title">Vision Mode</div>
+      <p class="cap-desc">Activate Vision Mode to let INNOSTAA see through your camera. Describe scenes, identify objects, read text — your assistant gains eyes.</p>
+    </div>
+    <div class="cap-card">
+      <span class="cap-icon">🖥️</span>
+      <div class="cap-title">Screen Sharing Intelligence</div>
+      <p class="cap-desc">Share your screen with INNOSTAA. It reads, understands, and responds to what's on your display — answering questions about content in real-time.</p>
+    </div>
+    <div class="cap-filler"></div>
+    <div class="cap-card">
+      <span class="cap-icon">🤌</span>
+      <div class="cap-title">Computer Vision Gestures</div>
+      <p class="cap-desc">Three gesture features powered by computer vision. Control your system with hand movements — no keyboard, no mouse required.</p>
+    </div>
+    <div class="cap-filler"></div>
+  </div>
+</section>
+
+<!-- GESTURES -->
+<section id="gestures">
+  <span class="section-label">Gesture Intelligence</span>
+  <h2 class="section-title fade-up">Three Ways to<br><span>Touch the Interface</span></h2>
+  <div class="gestures-grid fade-up">
+    <div class="gesture-card">
+      <span class="gesture-num">01</span>
+      <div class="gesture-icon">🎮</div>
+      <div class="gesture-title">Tic Tac Toe</div>
+      <p class="gesture-desc">Play Tic Tac Toe using only your hands in the air. Computer vision tracks your finger to place marks — zero peripherals required.</p>
+    </div>
+    <div class="gesture-card">
+      <span class="gesture-num">02</span>
+      <div class="gesture-icon">🖱️</div>
+      <div class="gesture-title">Virtual Mouse</div>
+      <p class="gesture-desc">Control your cursor through hand gestures captured by your webcam. Move, click, and scroll with a pinch or wave — hands as input device.</p>
+    </div>
+    <div class="gesture-card">
+      <span class="gesture-num">03</span>
+      <div class="gesture-icon">✏️</div>
+      <div class="gesture-title">Air Whiteboard</div>
+      <p class="gesture-desc">Draw in mid-air on a virtual whiteboard. Use your index finger to sketch, annotate, or express ideas — captured live through your camera.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MODULES STRIP -->
+<section id="modules">
+  <div class="modules-inner">
+    <span class="section-label">Core Intelligence</span>
+    <h2 class="section-title fade-up">Built on <span>Precision</span></h2>
+    <p style="color:var(--muted);font-size:0.95rem;max-width:550px;line-height:1.7;margin-top:0.8rem;margin-bottom:0">Each module runs independently and cohesively — engineered for low latency, high accuracy.</p>
+    <div class="module-list fade-up">
+      <div class="module-tag"><span class="module-dot"></span> Natural Language Processing</div>
+      <div class="module-tag"><span class="module-dot"></span> MediaPipe Hand Tracking</div>
+      <div class="module-tag"><span class="module-dot"></span> ESP32 IoT Bridge</div>
+      <div class="module-tag"><span class="module-dot"></span> Vision & OCR Engine</div>
+      <div class="module-tag"><span class="module-dot"></span> Semantic File Search</div>
+      <div class="module-tag"><span class="module-dot"></span> Research Crawler</div>
+      <div class="module-tag"><span class="module-dot"></span> Screen Reader API</div>
+      <div class="module-tag"><span class="module-dot"></span> Reflective Session Memory</div>
+      <div class="module-tag"><span class="module-dot"></span> Wake Word Detection</div>
+      <div class="module-tag"><span class="module-dot"></span> Auto Report Export (.pdf/.docx)</div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download" style="padding:7rem 2rem;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <span class="section-label">Get Started</span>
+    <h2 class="section-title fade-up" style="margin-bottom:2.5rem;">Download <span>INNOSTAA</span></h2>
+    <div class="download-wrap fade-up">
+      <div class="download-info">
+        <h2>One installer.<br>Total control.</h2>
+        <p>INNOSTAA ships as a single Windows executable. No complicated setup — install, authenticate, and your machine becomes truly intelligent.</p>
+        <ul class="req-list">
+          <li>Windows 10 / 11 (64-bit)</li>
+          <li>Python 3.10+ (bundled)</li>
+          <li>Webcam recommended for Vision & Gestures</li>
+          <li>Microphone required</li>
+          <li>4GB RAM minimum</li>
+          <li>Active internet for Research Mode</li>
+        </ul>
+        <div style="margin-top:1.5rem;padding:1rem;background:rgba(26,111,255,0.06);border-radius:8px;border-left:2px solid var(--accent);">
+          <p style="font-size:0.8rem;color:var(--muted);font-family:'JetBrains Mono',monospace;">
+            ▸ ESP32 firmware available post-install<br>
+            ▸ Your data stays local — we only store your name & email
+          </p>
+        </div>
+      </div>
+      <div class="login-box">
+        <h3>Create your profile</h3>
+        <p>Enter your details to unlock the download. Your info is saved securely.</p>
+        <div id="loginForm">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="userName" placeholder="Your name" />
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="userEmail" placeholder="you@example.com" />
+          </div>
+          <button class="btn-download" onclick="handleDownload()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download INNOSTAA.exe
+          </button>
+        </div>
+        <div class="success-msg" id="successMsg">
+          ✓ Registered! Your download is starting...<br><br>
+          <span style="font-size:0.75rem;color:var(--muted)">Welcome aboard. INNOSTAA awaits.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <span class="logo">INNOSTAA</span>
+      <p>Seven distinct intelligence modules. One voice. Your machine, finally obedient.</p>
+      <div style="margin-top:1rem;" class="windows-badge" style="display:inline-flex;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.557L10.333 4.5V11.5H3V5.557ZM11.333 4.357L21 3V11.5H11.333V4.357ZM3 12.5H10.333V19.5L3 18.443V12.5ZM11.333 12.5H21V21L11.333 19.643V12.5Z"/></svg>
+        Windows Only · v1.0
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Features</h4>
+      <a href="#capabilities">Voice Assistant</a>
+      <a href="#gestures">Gesture Control</a>
+      <a href="#capabilities">Vision Mode</a>
+      <a href="#capabilities">Research Mode</a>
+      <a href="#capabilities">Room Control</a>
+    </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <a href="#">Documentation</a>
+      <a href="#">ESP32 Setup Guide</a>
+      <a href="#">Changelog</a>
+      <a href="#download">Download</a>
+    </div>
+  </div>
+
+  <!-- Contact Block -->
+  <div class="contact-block">
+    <div style="flex:1;min-width:200px;">
+      <p style="font-size:0.88rem;font-weight:700;margin-bottom:0.3rem;">Get in Touch</p>
+      <p style="font-size:0.82rem;color:var(--muted);">For feedback, queries, or partnership — reach out anytime.</p>
+    </div>
+    <div class="contact-item">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <div>
+        <div class="c-label">Feedback</div>
+        <div class="c-email">feedback@innostaa.ai</div>
+      </div>
+    </div>
+    <div class="contact-item">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      <div>
+        <div class="c-label">Support & Queries</div>
+        <div class="c-email">support@innostaa.ai</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <p>© 2025 INNOSTAA · Built with intelligence</p>
+    <span class="os-badge">Windows 10 / 11 · x64</span>
+  </div>
+</footer>
+
+<!-- LOGIN MODAL -->
+<div id="loginModal" style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;">
+  <!-- Backdrop -->
+  <div onclick="closeLoginModal()" style="position:absolute;inset:0;background:rgba(3,5,13,0.85);backdrop-filter:blur(10px);"></div>
+  <!-- Box -->
+  <div style="position:relative;z-index:501;background:linear-gradient(135deg,#060c1a,#0a1628);border:1px solid rgba(26,111,255,0.3);border-radius:16px;padding:2.8rem 2.4rem;width:100%;max-width:420px;margin:1rem;box-shadow:0 0 80px rgba(26,111,255,0.25);">
+    <!-- Close -->
+    <button onclick="closeLoginModal()" style="position:absolute;top:1rem;right:1.2rem;background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+    <!-- Top accent line -->
+    <div style="height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;margin-bottom:2rem;"></div>
+    <div id="modalForm">
+      <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:0.4rem;">Get INNOSTAA</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1.8rem;line-height:1.6;">Enter your details to unlock the <span style="color:var(--accent2);font-family:'JetBrains Mono',monospace;">.exe</span> download. Your info is saved locally.</p>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="modalName" placeholder="Your full name" />
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="modalEmail" placeholder="you@example.com" />
+      </div>
+      <div id="modalError" style="display:none;color:#ff6b6b;font-size:0.8rem;margin-bottom:0.8rem;font-family:'JetBrains Mono',monospace;"></div>
+      <button class="btn-download" onclick="handleModalDownload()" style="margin-top:0.4rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download INNOSTAA.exe
+      </button>
+      <p style="font-size:0.72rem;color:var(--muted);text-align:center;margin-top:0.9rem;font-family:'JetBrains Mono',monospace;">🔒 Windows Only · x64 · v1.0 Beta</p>
+    </div>
+    <div id="modalSuccess" style="display:none;text-align:center;padding:1.5rem 0;">
+      <div style="font-size:3rem;margin-bottom:1rem;">✓</div>
+      <h3 style="color:var(--accent2);margin-bottom:0.5rem;">You're in!</h3>
+      <p style="font-size:0.85rem;color:var(--muted);line-height:1.6;">Your download is starting…<br>Welcome aboard, INNOSTAA awaits.</p>
+      <button onclick="closeLoginModal()" style="margin-top:1.5rem;background:none;border:1px solid var(--border);color:var(--muted);padding:0.5rem 1.5rem;border-radius:6px;font-family:'Syne',sans-serif;font-size:0.85rem;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Modal open/close
+function openLoginModal() {
+  const modal = document.getElementById('loginModal');
+  modal.style.display = 'flex';
+  document.getElementById('modalForm').style.display = 'block';
+  document.getElementById('modalSuccess').style.display = 'none';
+  document.getElementById('modalName').value = '';
+  document.getElementById('modalEmail').value = '';
+  document.getElementById('modalError').style.display = 'none';
+  setTimeout(() => document.getElementById('modalName').focus(), 100);
+}
+function closeLoginModal() {
+  document.getElementById('loginModal').style.display = 'none';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLoginModal(); });
+
+function handleModalDownload() {
+  const name = document.getElementById('modalName').value.trim();
+  const email = document.getElementById('modalEmail').value.trim();
+  const errEl = document.getElementById('modalError');
+  errEl.style.display = 'none';
+  if (!name || !email) { errEl.textContent = '▸ Please fill in both fields.'; errEl.style.display = 'block'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errEl.textContent = '▸ Please enter a valid email address.'; errEl.style.display = 'block'; return; }
+
+  // Save to localStorage as JSON database
+  const existing = JSON.parse(localStorage.getItem('innostaa_users') || '[]');
+  existing.push({ name, email, registered: new Date().toISOString() });
+  localStorage.setItem('innostaa_users', JSON.stringify(existing, null, 2));
+
+  // Show success state
+  document.getElementById('modalForm').style.display = 'none';
+  document.getElementById('modalSuccess').style.display = 'block';
+
+  // Trigger download
+  setTimeout(() => {
+    const blob = new Blob([`INNOSTAA v1.0 Installer\nRegistered: ${name} | ${email}\nReplace this with your real .exe file URL.`], { type: 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'INNOSTAA_Setup_v1.0.exe';
+    a.click();
+  }, 800);
+}
+
+// Cursor
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+  setTimeout(() => {
+    ring.style.left = e.clientX + 'px';
+    ring.style.top = e.clientY + 'px';
+  }, 60);
+});
+document.querySelectorAll('a, button, input').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.width = '20px'; cursor.style.height = '20px';
+    ring.style.width = '50px'; ring.style.height = '50px';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.width = '12px'; cursor.style.height = '12px';
+    ring.style.width = '36px'; ring.style.height = '36px';
+  });
+});
+
+// Fade-up observer
+const obs = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+
+// Download + save user
+function handleDownload() {
+  const name = document.getElementById('userName').value.trim();
+  const email = document.getElementById('userEmail').value.trim();
+  if (!name || !email) { alert('Please fill in both fields.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email.'); return; }
+
+  // Save to localStorage as JSON (simulating local JSON database)
+  const existing = JSON.parse(localStorage.getItem('innostaa_users') || '[]');
+  const entry = { name, email, registered: new Date().toISOString() };
+  existing.push(entry);
+  localStorage.setItem('innostaa_users', JSON.stringify(existing, null, 2));
+
+  // Show success
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('successMsg').style.display = 'block';
+
+  // Trigger download after 1 second
+  setTimeout(() => {
+    const blob = new Blob([`INNOSTAA v1.0 Installer Placeholder\nUser: ${name} | ${email}\nDownload your real installer from the official release.`], { type: 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'INNOSTAA_Setup_v1.0.exe';
+    a.click();
+  }, 1000);
+}
+</script>
+</body>
+</html>
